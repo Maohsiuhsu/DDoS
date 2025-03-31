@@ -6,8 +6,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 
-# 設定儲存路徑
-save_model_dir = "./2017/ADASYN"
+# save path 
+save_model_dir = "./record"
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 save_model_dir = os.path.join(save_model_dir, current_time)
 os.makedirs(save_model_dir, exist_ok=True)
@@ -17,8 +17,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         super().__init__(min_available_clients=min_available_clients)
         self.client_training_data = []
         self.client_evaluation_data = []
-        self.client_mapping = {}  # 存 client id 對應的名稱
-        self.client_counter = 1  # 記錄目前的 client 數量
+        self.client_mapping = {}  
+        self.client_counter = 1  
 
         self.losses_distributed = []
         self.metrics_distributed = {
@@ -34,12 +34,11 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             "recall": [],
             "f1-score": []
         }
-        # 新增屬性，用來存放未知的 additional metrics
+
         self.additional_metrics_data = []
         self.additional_metrics_data_eval = []
 
     def get_client_id(self, original_id):
-        """如果是新的 client，就分配一個新的 `client_X` ID"""
         if original_id not in self.client_mapping:
             new_client_id = f"client_{self.client_counter}"
             self.client_mapping[original_id] = new_client_id
@@ -54,10 +53,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         client_data = []
 
         for client, fit_res in results:
-            client_id = self.get_client_id(client.cid)  # 取得對應的 client_ 編號
+            client_id = self.get_client_id(client.cid)  
             metrics = fit_res.metrics
 
-            # 取得固定的 metrics
             loss = metrics.get("loss", 0)
             accuracy = metrics.get("accuracy", 0)
             precision = metrics.get("precision", 0)
@@ -72,7 +70,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
             client_data.append([server_round, client_id, loss, accuracy, precision, recall, f1_score])
             
-            # 取得額外的 metrics（未知的 key）
             additional_metrics = {key: value for key, value in metrics.items() 
                                   if key not in ["loss", "accuracy", "precision", "recall", "f1-score"]}
             if additional_metrics:
@@ -94,10 +91,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         for key in self.metrics_distributed.keys():
             self.metrics_distributed[key].append((server_round, avg_train_metrics[key]))
 
-        # 聚合權重
+
         aggregated_weights = super().aggregate_fit(server_round, results, failures)
 
-        # 儲存 Aggregated Model Weights 與 Metrics
         if aggregated_weights is not None:
             round_dir = os.path.join(save_model_dir, "weights")
             os.makedirs(round_dir, exist_ok=True)
@@ -142,8 +138,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             round_eval_metrics["recall"].append(recall)
             round_eval_metrics["f1-score"].append(f1_score)
 
-
-            # 取得額外的 metrics（未知的 key）
             additional_metrics = {key: value for key, value in metrics.items() 
                                   if key not in ["loss", "accuracy", "precision", "recall", "f1-score"]}
             if additional_metrics:
@@ -184,11 +178,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         avg_train_metrics.to_csv(os.path.join(save_model_dir, "average_training_data.csv"), index=False)
         avg_eval_metrics.to_csv(os.path.join(save_model_dir, "average_evaluation_data.csv"), index=False)
 
-        # 儲存 client mapping
         with open(os.path.join(save_model_dir, "client_mapping.json"), "w") as f:
             json.dump(self.client_mapping, f, indent=4)
 
-        # 儲存 additional metrics（未知 key）
+
         if self.additional_metrics_data:
             df_additional = pd.DataFrame(self.additional_metrics_data, columns=["Round", "Client_ID", "Metric", "Value"])
             additional_metrics_file = os.path.join(save_model_dir, "additional_metrics.csv")
@@ -198,11 +191,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         print("Training and evaluation data saved as CSV and JSON.")
 
     def visualize_progress(self):
-        """畫出每個 Client 與所有 Client 的訓練與評估數據"""
+        """Draw training and evaluation data for each client and all clients"""
         df_train = pd.DataFrame(self.client_training_data, columns=["Round", "Client_ID", "Loss", "Accuracy", "Precision", "Recall", "F1-Score"])
         df_eval = pd.DataFrame(self.client_evaluation_data, columns=["Round", "Client_ID", "Loss", "Accuracy", "Precision", "Recall", "F1-Score"])
 
-        # 每個 Client 的 Metrics 圖
         for client_id in df_train["Client_ID"].unique():
             client_data_train = df_train[df_train["Client_ID"] == client_id]
             client_data_eval = df_eval[df_eval["Client_ID"] == client_id]
@@ -229,7 +221,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             plt.close()
             print(f"Saved {client_id} metrics plot at {plot_file}")
 
-        # 所有 Client 平均 Metrics
         avg_train_metrics = df_train.groupby("Round")[["Accuracy", "Precision", "Recall", "F1-Score"]].mean()
         avg_eval_metrics = df_eval.groupby("Round")[["Accuracy", "Precision", "Recall", "F1-Score"]].mean()
 
@@ -275,7 +266,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             plt.close()
             print(f"Saved {client_id} loss plot at {plot_file}")
 
-        # 所有 Client 平均 Loss 圖
         avg_train_loss = df_train.groupby("Round")["Loss"].mean()
         avg_eval_loss = df_eval.groupby("Round")["Loss"].mean()
 
@@ -294,44 +284,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         plt.close()
         print(f"Saved average loss plot at {avg_loss_file}")
 
-        # # 繪製未知 metric 的圖表 (訓練)
-        # if self.additional_metrics_data:
-        #     df_additional = pd.DataFrame(self.additional_metrics_data, columns=["Round", "Client_ID", "Metric", "Value"])
-        #     for client_id in df_additional["Client_ID"].unique():
-        #         client_data = df_additional[df_additional["Client_ID"] == client_id]
-        #         plt.figure(figsize=(12, 6))
-        #         for metric in client_data["Metric"].unique():
-        #             metric_data = client_data[client_data["Metric"] == metric]
-        #             plt.plot(metric_data["Round"], metric_data["Value"], marker='o', label=f"{metric}")
-        #         plt.title(f"Additional Metrics per Round for {client_id}")
-        #         plt.xlabel("Training Round")
-        #         plt.ylabel("Metric Value")
-        #         plt.legend()
-        #         plt.grid(True)
-        #         plot_file = os.path.join(save_model_dir, f"{client_id}_additional_metrics.png")
-        #         plt.savefig(plot_file)
-        #         plt.close()
-        #         print(f"Saved additional metrics plot for {client_id} at {plot_file}")
-
-        # # 繪製未知 metric 的圖表 (評估)
-        # if self.additional_metrics_data_eval:
-        #     df_additional_eval = pd.DataFrame(self.additional_metrics_data_eval, columns=["Round", "Client_ID", "Metric", "Value"])
-        #     for client_id in df_additional_eval["Client_ID"].unique():
-        #         client_data = df_additional_eval[df_additional_eval["Client_ID"] == client_id]
-        #         plt.figure(figsize=(12, 6))
-        #         for metric in client_data["Metric"].unique():
-        #             metric_data = client_data[client_data["Metric"] == metric]
-        #             plt.plot(metric_data["Round"], metric_data["Value"], marker='o', label=f"{metric}")
-        #         plt.title(f"Additional Evaluation Metrics per Round for {client_id}")
-        #         plt.xlabel("Training Round")
-        #         plt.ylabel("Metric Value")
-        #         plt.legend()
-        #         plt.grid(True)
-        #         plot_file = os.path.join(save_model_dir, f"{client_id}_additional_metrics_eval.png")
-        #         plt.savefig(plot_file)
-        #         plt.close()
-        #         print(f"Saved additional evaluation metrics plot for {client_id} at {plot_file}")
-
+  
         # 繪製未知 metric 的圖表 (訓練) - 根據 precision, recall, f1-score 分開產生不同圖片
         if self.additional_metrics_data:
             df_additional = pd.DataFrame(self.additional_metrics_data, columns=["Round", "Client_ID", "Metric", "Value"])
@@ -358,7 +311,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                     plt.close()
                     print(f"Saved {metric_type} additional metrics plot for {client_id} at {plot_file}")
 
-        # 繪製未知 metric 的圖表 (評估) - 根據 precision, recall, f1-score 分開產生不同圖片
+        # Draw an unknown metric chart (evaluation) - generate different images separately according to precision, recall, f1-score
         if self.additional_metrics_data_eval:
             df_additional_eval = pd.DataFrame(self.additional_metrics_data_eval, columns=["Round", "Client_ID", "Metric", "Value"])
             for client_id in df_additional_eval["Client_ID"].unique():
@@ -383,7 +336,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
 
 
-# 建立策略物件並啟動伺服器
+# Create a policy object and start the server
 strategy = SaveModelStrategy(min_available_clients=2)
 
 history = fl.server.start_server(
