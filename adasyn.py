@@ -7,20 +7,17 @@ from sklearn.decomposition import PCA
 from imblearn.over_sampling import ADASYN
 from collections import Counter
 from datetime import datetime
-# 讀取資料
-input_path =  '/home/root001/Howard/flower/ddos_flower/Dataset/cicddos2019/splits_random/client_1_v1.csv'
-output_path = '/home/root001/Howard/flower/ddos_flower/Dataset/cicddos2019/splits_random/client_1_v1_balanced.csv'
+
+# loading data 
+input_path =  ''
+output_path = ''
 df = pd.read_csv(input_path, encoding='utf-8-sig', low_memory=False)
-print(f"✅ 讀入資料共 {df.shape[0]} 筆")
-# 根據時間創立儲存資料夾
 
 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-output_dir = f"/home/root001/Howard/flower/ddos_flower/Output/{current_time}"
+output_dir = f"./{current_time}"
 os.makedirs(output_dir, exist_ok=True)
-print(f"📂 已創建輸出資料夾: {output_dir}")
 
-
-# 欄位處理與缺失值
+# Column processing and missing values
 df.rename(columns={'Label': 'label'}, inplace=True)
 df.columns = df.columns.str.strip()
 print(df.columns)
@@ -30,17 +27,17 @@ if 'label' not in df.columns:
     exit()
 df.fillna(0, inplace=True)
 
-# 類別編碼
+
 encoder = LabelEncoder()
 for col in df.select_dtypes(include='object').columns:
     if col != 'label':
         df[col] = encoder.fit_transform(df[col])
 
-# 分離特徵與標籤
+# Separate features and labels
 X_all = df.drop(columns=['label'])
 y = df['label']
 
-# 指定適合用於 ADASYN 的連續特徵欄位
+
 # For CICIDS 2017
 # adasyn_features = [
 #     'Flow Duration', 'Total Fwd Packets', 'Total Backward Packets',
@@ -87,24 +84,25 @@ adasyn_features = [
     'active max', 'active min', 'idle mean', 'idle std', 'idle max', 'idle min', 
     'inbound'
 ]
-# 篩選出可用於 ADASYN 的特徵（避免使用旗標/類別型欄位）
+
+
 X = X_all[adasyn_features].copy()
 
-# 清洗與標準化
+# Cleaning and standardization
 X.replace([np.inf, -np.inf], np.nan, inplace=True)
 X.fillna(0, inplace=True)
 X = np.clip(X, -1e6, 1e6)
 X_scaled = StandardScaler().fit_transform(X)
 
-# 類別分佈與目標平衡值
+# Category distribution and target balance value
 label_count = Counter(y)
-print("📊 原始類別分佈:", label_count)
+print("📊 Original category distribution:", label_count)
 
 raw_median = int(np.median(list(label_count.values())))
-# target_count = min(raw_median, 10000)
+
 target_count = raw_median
 
-print(f"🌟 目標各類數: {target_count}")
+print(f"🌟 Targeted numbers: {target_count}")
 
 undersample_df = []
 adasyn_indices = []
@@ -158,10 +156,10 @@ balanced_df = balanced_df.sample(frac=1, random_state=42)
 balanced_df.to_csv(output_path, index=False, encoding='utf-8-sig')
 print(f"✅ 已儲存平衡資料至: {output_path}")
 
-# ➕ 使用 PCA 與 t-SNE 分佈分析與圖像儲存
-print("📈 開始進行 PCA 與 t-SNE 分佈分析與圖像儲存...")
+# ➕ Distribution analysis and image storage using PCA and t-SNE
+print("📈 Begin PCA and t-SNE distribution analysis and image storage...")
 
-# 共用顏色與標籤
+
 label_encoder = LabelEncoder()
 orig_labels = label_encoder.fit_transform(df['label'])
 bal_labels = label_encoder.transform(balanced_df['label'])
@@ -234,5 +232,4 @@ axs[1].set_ylabel('t-SNE 2')
 fig.legend(label_names, loc='center right', fontsize=8)
 plt.tight_layout(rect=[0, 0, 0.9, 1])
 plt.savefig(os.path.join(output_dir, "tsne_distribution_comparison.png"), dpi=300)
-
-print("📸 t-SNE 分佈圖已儲存為: tsne_distribution_comparison.png")
+print("📸 t-SNE distribution map has been stored as: tsne_distribution_comparison.png")
