@@ -340,7 +340,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 strategy = SaveModelStrategy(min_available_clients=2)
 
 history = fl.server.start_server(
-    server_address="120.113.101.8:8081", 
+    server_address="localhost:8081", 
     config=fl.server.ServerConfig(num_rounds=3),
     strategy=strategy
 )
