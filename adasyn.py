@@ -119,17 +119,17 @@ for label in label_count:
         # target = target_count
         sampled_idx = np.random.choice(class_indices, size=target, replace=False)
         undersample_df.append(df.loc[sampled_idx])
-        print(f"🔽 下採樣 {label}: {class_count} → {target} (不得低於5%)")
+        print(f"🔽 Downsampling {label}: {class_count} → {target} (No less than 5%)")
     elif class_count < target_count:
         max_allowed = class_count * 2
         adjusted_target = min(target_count, max_allowed)
         if adjusted_target > class_count:
             sampling_strategy[label] = adjusted_target
             adasyn_indices.extend(class_indices.tolist())
-            print(f"🔼 將用 ADASYN 擴增 {label}: {class_count} → {adjusted_target} (不得高於原本的2倍)")
+            print(f"🔼 Augment by ADASYN {label}: {class_count} → {adjusted_target} (Should not be more than double the original)")
     else:
         no_action_df.append(df.loc[class_indices])
-        print(f"⏸ 保留原樣 {label}: {class_count}")
+        print(f"⏸ Retain the original form  {label}: {class_count}")
 
 balanced_df = pd.concat(undersample_df + no_action_df, axis=0)
 intermediate_count = Counter(balanced_df['label'])
@@ -150,11 +150,11 @@ if sampling_strategy:
             df_adasyn[col] = df_adasyn['label'].map(mode_map)
 
     balanced_df = pd.concat([balanced_df, df_adasyn], axis=0)
-    print(f"✅ ADASYN 擴增完成: {Counter(y_resampled)}")
+    print(f"✅ ADASYN : {Counter(y_resampled)}")
 
 balanced_df = balanced_df.sample(frac=1, random_state=42)
 balanced_df.to_csv(output_path, index=False, encoding='utf-8-sig')
-print(f"✅ 已儲存平衡資料至: {output_path}")
+print(f"✅ Balanced data has been saved to : {output_path}")
 
 # ➕ Distribution analysis and image storage using PCA and t-SNE
 print("📈 Begin PCA and t-SNE distribution analysis and image storage...")
@@ -191,7 +191,7 @@ axs[1].set_ylabel('PCA 2')
 fig.legend(label_names, loc='center right', fontsize=8)
 plt.tight_layout(rect=[0, 0, 0.9, 1])
 plt.savefig(os.path.join(output_dir, "pca_distribution_comparison.png"), dpi=300)
-print("📸 PCA 分佈圖已儲存為: pca_distribution_comparison.png")
+print("PCA distribution plot has been saved as : pca_distribution_comparison.png")
 
 # ---------- t-SNE ----------
 from sklearn.manifold import TSNE
