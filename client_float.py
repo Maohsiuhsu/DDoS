@@ -1,12 +1,11 @@
 """
-此程式為 Flower 客戶端，用於聯邦學習架構中的分散式訓練，
-主要功能包括：
-1. 載入 Edge-IIoT 資料集並進行預處理（標準化與 OneHot 編碼）
-2. 建立多層感知器 (MLP) 模型進行分類（針對工業物聯網攻擊類型）
-3. 在本地端進行訓練與評估
-4. 支援使用者選擇訓練或傳送模型權重時是否使用 float16 精度
+This program is a Flower client for decentralized training in federated learning architecture.
+Main functions include:
+1. Load the Edge-IIoT dataset and preprocess it (standardization and OneHot encoding)
+2. Establish a multi-layer perceptron (MLP) model for classification (for industrial IoT attack types)
+3. Training and evaluation on the local side
+4. Supports whether to use float16 precision when selecting the training or transfer model weights
 """
-
 import flwr as fl
 import numpy as np
 import tensorflow as tf
@@ -18,13 +17,12 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import argparse
 
-# CLI 參數設定
 parser = argparse.ArgumentParser(description="Flower Client Options")
 parser.add_argument("--train_dtype", choices=["float32", "float16"], default="float32", help="訓練使用的資料精度")
 parser.add_argument("--send_dtype", choices=["float32", "float16"], default="float32", help="上傳權重使用的精度")
 args = parser.parse_args()
 
-# GPU 設定
+
 physical_devices = tf.config.list_physical_devices("GPU")
 if physical_devices:
     try:
@@ -35,7 +33,7 @@ if physical_devices:
 else:
     print("No GPU found. Running on CPU.")
 
-# 讀取資料
+# load data 
 csv_file = fr"/home/root001/Howard/flower/ddos_flower/Dataset/edgeiiot/Edge-IIoTset dataset/classifition/fortrain_data_E.csv"
 df = pd.read_csv(csv_file, low_memory=False)
 df.columns = df.columns.str.strip()
@@ -58,7 +56,7 @@ encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
 Y_train = encoder.fit_transform(Y_train.reshape(-1, 1))
 Y_test = encoder.transform(Y_test.reshape(-1, 1))
 
-# 模型定義
+# define model 
 
 def create_model():
     model = Sequential([
@@ -71,7 +69,7 @@ def create_model():
     model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4), metrics=['accuracy'])
     return model
 
-# 指標計算
+# calculate metrics
 
 def compute_metrics(y_true, y_pred, class_labels):
     y_true_labels = np.argmax(y_true, axis=1)
@@ -92,7 +90,7 @@ def compute_metrics(y_true, y_pred, class_labels):
             })
     return metrics
 
-# Flower 客戶端
+# Flower client
 
 model = create_model()
 
@@ -120,5 +118,5 @@ class FlowerClient(fl.client.NumPyClient):
               f"F1-Score: {metrics['f1-score']:.4f}")
         return float(loss), len(X_test), metrics
 
-fl.client.start_numpy_client(server_address="140.130.21.116:8080", client=FlowerClient())
-print("客戶端已完成訓練，正在向伺服器發送更新")
+fl.client.start_numpy_client(server_address="localhost:8080", client=FlowerClient())
+
