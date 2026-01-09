@@ -27,7 +27,7 @@ Run ADASYN first to expand the dataset:
 
 ```bash
 python adasyn.py
-```bash
+```
 ### Step 2 — Start the Server (Change IP First)
 
 1. Open server.py and set the server IP to your own machine IP:
@@ -35,7 +35,7 @@ python adasyn.py
 
 ```bash
 python server.py
-```bash
+```
 
 ### Step 3 — Start Clients (At Least Two, Change IP First)
 
@@ -44,5 +44,5 @@ python server.py
 
 ```bash
 python client.py
-```bash
+```
 
